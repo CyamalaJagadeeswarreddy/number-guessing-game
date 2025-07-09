@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hits and Matches Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#3f51b5" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f2f2f2;
+      margin: 0;
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    header, footer {
+      background-color: #3f51b5;
+      color: white;
+      padding: 15px;
+      border-radius: 0 0 10px 10px;
+    }
+
+    h1 {
+      margin: 0;
+    }
+
+    #gameArea {
+      margin-top: 20px;
+    }
+
+    button {
+      margin: 5px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #3f51b5;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #2c3e90;
+    }
+
+    #history {
+      white-space: pre-line;
+      margin-top: 10px;
+      background: #fff;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    input[type="text"] {
+      padding: 10px;
+      font-size: 16px;
+      width: 200px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    footer p {
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Hits and Matches</h1>
+  </header>
+
+  <!-- Name Input -->
+  <div id="nameInputSection">
+    <p>Enter your name to start:</p>
+    <input type="text" id="playerName" placeholder="Your Name" />
+    <button onclick="submitName()">Start</button>
+  </div>
+
+  <!-- Greeting and Rules -->
+  <div id="greetingSection" class="hidden">
+    <p id="greetingMessage"></p>
+    <button onclick="showLevels()">OK</button>
+  </div>
+
+  <!-- Level Selection -->
+  <div id="levelSelection" class="hidden">
+    <p>Select Difficulty Level:</p>
+    <button onclick="startGame('easy')">Easy</button>
+    <button onclick="startGame('medium')">Medium</button>
+    <button onclick="startGame('hard')">Hard</button>
+  </div>
+
+  <!-- Game Area -->
+  <div id="gameArea" class="hidden">
+    <p id="status"></p>
+    <input type="text" id="guessInput" placeholder="Enter your guess" />
+    <button onclick="makeGuess()">Guess</button>
+    <p id="result"></p>
+    <p id="history"></p>
+  </div>
+
+  <!-- Play Again Button -->
+  <button id="playAgainBtn" class="hidden" onclick="resetGame()">Play Again</button>
+
+  <!-- Win Sound -->
+  <audio id="winSound" src="win.mp3" preload="auto"></audio>
+
+  <footer>
+    <!-- Footer is now empty -->
+  </footer>
+
+  <script>
+    let playerName = '';
+    let secretNumber = '';
+    let digits = 0;
+    let maxChances = 0;
+    let attempts = 0;
+    let history = [];
+
+    function submitName() {
+      const nameInput = document.getElementById('playerName').value.trim();
+      if (!nameInput) {
+        alert("Please enter your name.");
+        return;
+      }
+      playerName = nameInput;
+      document.getElementById('nameInputSection').classList.add('hidden');
+      document.getElementById('greetingSection').classList.remove('hidden');
+      document.getElementById('greetingMessage').innerHTML = `
+        Hi ${playerName}! 👋<br><br>
+        Welcome to the Hits and Matches game.<br><br>
+        <strong>Rules:</strong><br>
+        - Guess a secret number with unique digits.<br>
+        - <b>Hit</b> = correct digit & correct position<br>
+        - <b>Match</b> = correct digit but wrong position<br><br>
+        Click OK to begin!
+      `;
+    }
+
+    function showLevels() {
+      document.getElementById('greetingSection').classList.add('hidden');
+      document.getElementById('levelSelection').classList.remove('hidden');
+    }
+
+    function startGame(level) {
+      if (level === 'easy') {
+        digits = 2;
+        maxChances = 7;
+      } else if (level === 'medium') {
+        digits = 3;
+        maxChances = 7;
+      } else if (level === 'hard') {
+        digits = 4;
+        maxChances = 5;
+      }
+
+      secretNumber = generateNumber(digits);
+      attempts = 0;
+      history = [];
+
+      document.getElementById('levelSelection').classList.add('hidden');
+      document.getElementById('gameArea').classList.remove('hidden');
+      document.getElementById('status').textContent = `Guess the ${digits}-digit number. You have ${maxChances} chances.`;
+      document.getElementById('result').textContent = '';
+      document.getElementById('history').textContent = '';
+      document.getElementById('guessInput').value = '';
+      document.getElementById('guessInput').disabled = false;
+      document.getElementById('guessInput').focus();
+    }
+
+    function generateNumber(length) {
+      let digitsArr = [];
+      while (digitsArr.length < length) {
+        let digit = Math.floor(Math.random() * 10).toString();
+        if (!digitsArr.includes(digit)) {
+          digitsArr.push(digit);
+        }
+      }
+      return digitsArr.join('');
+    }
+
+    function makeGuess() {
+      let guess = document.getElementById('guessInput').value.trim();
+
+      if (guess.length !== digits) {
+        alert(`Enter exactly ${digits} digits.`);
+        return;
+      }
+
+      if (!/^\d+$/.test(guess)) {
+        alert('Enter only numeric digits!');
+        return;
+      }
+
+      if (new Set(guess).size !== guess.length) {
+        alert('Digits must be unique!');
+        return;
+      }
+
+      attempts++;
+      let { hits, matches } = calculateHitsMatches(guess, secretNumber);
+
+      let resultText = `Attempt ${attempts}: ${guess} — Hit: ${hits}, Match: ${matches}`;
+      history.push(resultText);
+      document.getElementById('history').textContent = history.join('\n');
+
+      if (hits === digits) {
+        document.getElementById('result').textContent = `🎉 Congratulations ${playerName}! You guessed it right. The number was ${secretNumber}.`;
+        document.getElementById('winSound').play();
+        endGame();
+      } else if (attempts >= maxChances) {
+        document.getElementById('result').textContent = `😞 Sorry ${playerName}, you're out of chances. The number was ${secretNumber}.`;
+        endGame();
+      } else {
+        document.getElementById('result').textContent = `Try again! ${maxChances - attempts} chances left.`;
+      }
+
+      document.getElementById('guessInput').value = '';
+      document.getElementById('guessInput').focus();
+    }
+
+    function calculateHitsMatches(guess, secret) {
+      let hits = 0;
+      let matches = 0;
+      for (let i = 0; i < guess.length; i++) {
+        if (guess[i] === secret[i]) {
+          hits++;
+        } else if (secret.includes(guess[i])) {
+          matches++;
+        }
+      }
+      return { hits, matches };
+    }
+
+    function endGame() {
+      document.getElementById('guessInput').disabled = true;
+      document.getElementById('playAgainBtn').classList.remove('hidden');
+    }
+
+    function resetGame() {
+      document.getElementById('gameArea').classList.add('hidden');
+      document.getElementById('levelSelection').classList.remove('hidden');
+      document.getElementById('result').textContent = '';
+      document.getElementById('history').textContent = '';
+      document.getElementById('playAgainBtn').classList.add('hidden');
+
+      const winSound = document.getElementById('winSound');
+      winSound.pause();
+      winSound.currentTime = 0;
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log('✅ Service Worker Registered'))
+        .catch(err => console.error('❌ SW registration failed:', err));
+    }
+  </script>
+</body>
+</html>
